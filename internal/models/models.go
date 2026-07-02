@@ -13,6 +13,11 @@ type SearchResult struct {
 	WhitelistWeight int    `json:"whitelistWeight"`
 }
 
+type RelatedSearch struct {
+	Query string `json:"query"`
+	Link  string `json:"link"`
+}
+
 type SearchRecord struct {
 	ID              string
 	QueryText       string

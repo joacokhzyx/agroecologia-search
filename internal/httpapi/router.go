@@ -13,7 +13,7 @@ func NewRouter(svc *search.Service, faviconHandler *favicon.Handler) http.Handle
 	mux.HandleFunc("GET /api/search", searchHandler(svc))
 	mux.HandleFunc("GET /api/favicon", faviconHandler.ServeHTTP)
 	mux.HandleFunc("GET /health", healthHandler)
-
+	mux.HandleFunc("GET /api/search/stream", searchStreamHandler(svc))
 	return withCORS(mux)
 }
 

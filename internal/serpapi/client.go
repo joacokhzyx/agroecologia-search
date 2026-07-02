@@ -22,6 +22,14 @@ func New(apiKey string) *Client {
 	}
 }
 
+
+
+
+type SearchOptions struct {
+	// DateRange: "" (cualquier momento), "w" (semana), "m" (mes), "y" (año).
+	DateRange string
+}
+
 type serpAPIResponse struct {
 	OrganicResults []struct {
 		Position int    `json:"position"`
@@ -29,30 +37,36 @@ type serpAPIResponse struct {
 		Link     string `json:"link"`
 		Snippet  string `json:"snippet"`
 	} `json:"organic_results"`
+	RelatedSearches []struct {
+		Query string `json:"query"`
+		Link  string `json:"link"`
+	} `json:"related_searches"`
 }
 
-// Search consulta el motor de Google en SerpAPI y devuelve los resultados
-// orgánicos crudos, todavía sin reordenar por la whitelist.
-func (c *Client) Search(query string) ([]models.SearchResult, error) {
-	endpoint := fmt.Sprintf(
-		"https://serpapi.com/search.json?engine=google&q=%s&hl=es&gl=ar&api_key=%s",
-		url.QueryEscape(query),
-		url.QueryEscape(c.apiKey),
-	)
+func (c *Client) Search(query string, opts SearchOptions) ([]models.SearchResult, []models.RelatedSearch, error) {
+	params := url.Values{}
+	params.Set("engine", "google")
+	params.Set("q", query)
+	params.Set("hl", "es")
+	params.Set("gl", "ar")
+	params.Set("api_key", c.apiKey)
+	if opts.DateRange != "" {
+		params.Set("tbs", "qdr:"+opts.DateRange)
+	}
 
-	resp, err := c.httpClient.Get(endpoint)
+	resp, err := c.httpClient.Get("https://serpapi.com/search.json?" + params.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("serpapi: falló la request: %w", err)
+		return nil, nil, fmt.Errorf("serpapi: falló la request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("serpapi: status inesperado %d", resp.StatusCode)
+		return nil, nil, fmt.Errorf("serpapi: status inesperado %d", resp.StatusCode)
 	}
 
 	var parsed serpAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, fmt.Errorf("serpapi: falló el decode: %w", err)
+		return nil, nil, fmt.Errorf("serpapi: falló el decode: %w", err)
 	}
 
 	results := make([]models.SearchResult, 0, len(parsed.OrganicResults))
@@ -67,7 +81,16 @@ func (c *Client) Search(query string) ([]models.SearchResult, error) {
 			FaviconURL: "/api/favicon?domain=" + url.QueryEscape(domain),
 		})
 	}
-	return results, nil
+
+	related := make([]models.RelatedSearch, 0, len(parsed.RelatedSearches))
+	for _, r := range parsed.RelatedSearches {
+		if r.Query == "" {
+			continue
+		}
+		related = append(related, models.RelatedSearch{Query: r.Query, Link: r.Link})
+	}
+
+	return results, related, nil
 }
 
 func extractDomain(rawURL string) string {

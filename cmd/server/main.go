@@ -27,7 +27,7 @@ func main() {
 
 	cacheClient := cache.New(cfg.UpstashRedisRestURL, cfg.UpstashRedisRestToken)
 	serpClient := serpapi.New(cfg.SerpAPIKey)
-	orClient := openrouter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel)
+	orClient := openrouter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, nil, "", "")
 
 	wl := whitelist.New(database)
 	if err := wl.Refresh(context.Background()); err != nil {
